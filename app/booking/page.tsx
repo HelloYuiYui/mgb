@@ -13,10 +13,10 @@ export default function BookingPage() {
   const [bookedSlots, setBookedSlots] = useState<BookedSlot[]>([]);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  // Load booked slots from sessionStorage (set by the postcode page)
+  // Fetch booked slots from the database on mount
   useEffect(() => {
-    const stored = sessionStorage.getItem("mgb_booked_slots");
     const postcode = sessionStorage.getItem("mgb_postcode");
 
     // Redirect back if no postcode in session (user navigated directly)
@@ -25,9 +25,21 @@ export default function BookingPage() {
       return;
     }
 
-    if (stored) {
-      setBookedSlots(JSON.parse(stored) as BookedSlot[]);
+    async function fetchBookedSlots() {
+      try {
+        const res = await fetch("/api/booked-slots");
+        const data = await res.json();
+        if (data.bookedSlots) {
+          setBookedSlots(data.bookedSlots as BookedSlot[]);
+        }
+      } catch {
+        // Slots will remain empty — all times shown as available
+      } finally {
+        setLoading(false);
+      }
     }
+
+    fetchBookedSlots();
   }, [router]);
 
   // Reset time selection when date changes
@@ -48,32 +60,38 @@ export default function BookingPage() {
       <Header title="Select a suitable date and time" />
 
       <div className="w-full max-w-md space-y-6">
-        <Calendar
-          bookedSlots={bookedSlots}
-          selectedDate={selectedDate}
-          onSelectDate={handleDateSelect}
-        />
+        {loading ? (
+          <p className="text-center text-gray-500">Loading availability...</p>
+        ) : (
+          <>
+            <Calendar
+              bookedSlots={bookedSlots}
+              selectedDate={selectedDate}
+              onSelectDate={handleDateSelect}
+            />
 
-        {selectedDate && (
-          <TimeSlots
-            selectedDate={selectedDate}
-            bookedSlots={bookedSlots}
-            selectedTime={selectedTime}
-            onSelectTime={setSelectedTime}
-          />
+            {selectedDate && (
+              <TimeSlots
+                selectedDate={selectedDate}
+                bookedSlots={bookedSlots}
+                selectedTime={selectedTime}
+                onSelectTime={setSelectedTime}
+              />
+            )}
+
+            <button
+              type="button"
+              disabled={!selectedDate || !selectedTime}
+              onClick={handleProceed}
+              className="w-full rounded-lg bg-blue-600 px-4 py-3 text-base font-semibold text-white
+                         shadow-sm transition-colors hover:bg-blue-700 focus:outline-none
+                         focus:ring-2 focus:ring-blue-500 focus:ring-offset-2
+                         disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Proceed
+            </button>
+          </>
         )}
-
-        <button
-          type="button"
-          disabled={!selectedDate || !selectedTime}
-          onClick={handleProceed}
-          className="w-full rounded-lg bg-blue-600 px-4 py-3 text-base font-semibold text-white
-                     shadow-sm transition-colors hover:bg-blue-700 focus:outline-none
-                     focus:ring-2 focus:ring-blue-500 focus:ring-offset-2
-                     disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          Proceed
-        </button>
       </div>
     </main>
   );
