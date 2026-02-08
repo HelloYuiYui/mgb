@@ -17,6 +17,15 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  // Validate email format if provided
+  const rawEmail = body.email?.trim();
+  if (rawEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(rawEmail)) {
+    return NextResponse.json<BookAppointmentResponse>(
+      { success: false, error: "Please enter a valid email address." },
+      { status: 400 }
+    );
+  }
+
   // Validate and normalise phone to 07XXXXXXXXX format
   const rawPhone = body.phone.trim().replace(/\s/g, "");
   if (!/^(?:\+447\d{9}|07\d{9}|7\d{9})$/.test(rawPhone)) {
@@ -31,14 +40,15 @@ export async function POST(request: NextRequest) {
       ? "0" + rawPhone
       : rawPhone;
 
-  // Validate postcode again server-side
-  const postcode = body.postcode?.trim().toUpperCase();
-  if (!postcode || postcode.length !== 6 || !postcode.startsWith("G")) {
+  // Validate and normalise postcode server-side
+  const rawPostcode = (body.postcode ?? "").replace(/\s/g, "").toUpperCase();
+  if (!/^G[A-Z0-9]{1,2}[A-Z0-9]{3}$/.test(rawPostcode)) {
     return NextResponse.json<BookAppointmentResponse>(
       { success: false, error: "Invalid postcode." },
       { status: 400 }
     );
   }
+  const postcode = rawPostcode.slice(0, -3) + " " + rawPostcode.slice(-3);
 
   if (!body.appointment_date || !body.appointment_time) {
     return NextResponse.json<BookAppointmentResponse>(

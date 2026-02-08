@@ -23,6 +23,13 @@ export default function DetailsForm() {
       return;
     }
 
+    // Validate email format if provided
+    const trimmedEmail = email.trim();
+    if (trimmedEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+      setError("Please enter a valid email address (e.g. john@example.com).");
+      return;
+    }
+
     // Validate British phone number format
     const cleanedPhone = phone.trim().replace(/\s/g, "");
     if (!/^(?:\+447\d{9}|07\d{9}|7\d{9})$/.test(cleanedPhone)) {

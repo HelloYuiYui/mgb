@@ -11,10 +11,14 @@ export default function PostcodeForm() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  /** Client-side validation: starts with G, exactly 6 chars (no spaces). */
+  /** Client-side validation: Glasgow postcode, 5 or 6 alphanumeric chars (no spaces). */
   function isValidPostcode(value: string): boolean {
-    const cleaned = value.replace(/\s/g, "").toUpperCase();
-    return cleaned.length === 6 && cleaned.startsWith("G");
+    return /^G[A-Z0-9]{1,2}[A-Z0-9]{3}$/.test(value);
+  }
+
+  /** Normalise to "GX XXX" or "GXX XXX" (space before last 3 characters). */
+  function formatPostcode(value: string): string {
+    return value.slice(0, -3) + " " + value.slice(-3);
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -27,12 +31,14 @@ export default function PostcodeForm() {
       return;
     }
 
+    const formatted = formatPostcode(cleaned);
+
     setLoading(true);
     try {
       const res = await fetch("/api/validate-postcode", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ postcode: cleaned }),
+        body: JSON.stringify({ postcode: formatted }),
       });
 
       const data: ValidatePostcodeResponse = await res.json();
@@ -43,7 +49,7 @@ export default function PostcodeForm() {
       }
 
       // Store postcode and booked slots for the booking page
-      sessionStorage.setItem("mgb_postcode", cleaned);
+      sessionStorage.setItem("mgb_postcode", formatted);
       sessionStorage.setItem("mgb_booked_slots", JSON.stringify(data.bookedSlots));
       router.push("/booking");
     } catch {
@@ -65,7 +71,7 @@ export default function PostcodeForm() {
           value={postcode}
           onChange={(e) => setPostcode(e.target.value)}
           placeholder="e.g. G1 1AA"
-          maxLength={7}
+          maxLength={8}
           className="mt-1 block w-full rounded-lg border border-gray-300 px-4 py-3 text-base
                      placeholder-gray-400 shadow-sm focus:border-blue-500 focus:outline-none
                      focus:ring-1 focus:ring-blue-500"

@@ -10,9 +10,9 @@ import type { ValidatePostcodeResponse, BookedSlot } from "@/lib/types";
 export async function POST(request: NextRequest) {
   const { postcode } = await request.json();
 
-  // Server-side postcode validation
-  const trimmed = (postcode ?? "").toString().trim().toUpperCase();
-  if (trimmed.length !== 6 || !trimmed.startsWith("G")) {
+  // Server-side postcode validation (strip spaces, 5-6 alphanumeric chars starting with G)
+  const cleaned = (postcode ?? "").toString().replace(/\s/g, "").toUpperCase();
+  if (!/^G[A-Z0-9]{1,2}[A-Z0-9]{3}$/.test(cleaned)) {
     return NextResponse.json<ValidatePostcodeResponse>({
       valid: false,
       error: "Invalid postcode. Must be a Glasgow-area postcode (e.g. G1 1AA).",
