@@ -16,7 +16,7 @@ export default function DetailsPage() {
     const time = sessionStorage.getItem("mgb_time");
 
     if (!postcode || !date || !time) {
-      router.replace("/");
+      router.replace("/book");
     }
   }, [router]);
 

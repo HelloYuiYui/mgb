@@ -21,7 +21,7 @@ export default function BookingPage() {
 
     // Redirect back if no postcode in session (user navigated directly)
     if (!postcode) {
-      router.replace("/");
+      router.replace("/book");
       return;
     }
 

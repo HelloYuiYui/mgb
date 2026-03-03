@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import type { BookAppointmentPayload, BookAppointmentResponse } from "@/lib/types";
+import { postcodes } from "../calculate-distance/route";
 
 /**
  * POST /api/book-appointment
@@ -42,13 +43,14 @@ export async function POST(request: NextRequest) {
 
   // Validate and normalise postcode server-side
   const rawPostcode = (body.postcode ?? "").replace(/\s/g, "").toUpperCase();
-  if (!/^G[A-Z0-9]{1,2}[A-Z0-9]{3}$/.test(rawPostcode)) {
+  console.log("Raw postcode:", body.postcode, "Cleaned postcode:", rawPostcode);
+  if (!postcodes.has(rawPostcode.slice(0, -3))) {
     return NextResponse.json<BookAppointmentResponse>(
       { success: false, error: "Invalid postcode." },
       { status: 400 }
     );
   }
-  const postcode = rawPostcode.slice(0, -3) + " " + rawPostcode.slice(-3);
+  const postcode = rawPostcode
 
   if (!body.appointment_date || !body.appointment_time) {
     return NextResponse.json<BookAppointmentResponse>(

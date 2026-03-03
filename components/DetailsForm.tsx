@@ -43,7 +43,7 @@ export default function DetailsForm() {
 
     if (!postcode || !date || !time) {
       setError("Session data missing. Please start from the beginning.");
-      router.replace("/");
+      router.replace("/book");
       return;
     }
 

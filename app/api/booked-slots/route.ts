@@ -14,7 +14,7 @@ export async function GET() {
 
   const { data, error } = await getSupabase()
     .from("appointments")
-    .select("appointment_date,appointment_time");
+    .select("appointment_date,appointment_time,postcode");
     // .gte("appointment_date", today)
     // .lte("appointment_date", twoWeeks);
 
@@ -28,6 +28,7 @@ export async function GET() {
   const bookedSlots: BookedSlot[] = (data ?? []).map((row) => ({
     date: row.appointment_date,
     time: row.appointment_time.slice(0, 5),
+    area: row.postcode // Store area for future filtering
   }));
   const ret = NextResponse.json({ bookedSlots }); 
   console.log("Fetched booked slots:", bookedSlots);

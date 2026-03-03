@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import type { ValidatePostcodeResponse, BookedSlot } from "@/lib/types";
+import { postcodes } from "../calculate-distance/route";
 
 /**
  * POST /api/validate-postcode
@@ -12,10 +13,10 @@ export async function POST(request: NextRequest) {
 
   // Server-side postcode validation (strip spaces, 5-6 alphanumeric chars starting with G)
   const cleaned = (postcode ?? "").toString().replace(/\s/g, "").toUpperCase();
-  if (!/^G[A-Z0-9]{1,2}[A-Z0-9]{3}$/.test(cleaned)) {
+  if (!/^G[A-Z0-9]{1,2}[A-Z0-9]{3}$/.test(cleaned) && !postcodes.has(cleaned.slice(0, -3))) {
     return NextResponse.json<ValidatePostcodeResponse>({
       valid: false,
-      error: "Invalid postcode. Must be a Glasgow-area postcode (e.g. G1 1AA).",
+      error: postcodes.has(cleaned.slice(0, -3)) ? "Invalid postcode. Must be a Glasgow-area postcode (e.g. G1 1AA)." : "Unfortunately your postcode is outside our service area.",
       bookedSlots: [],
     });
   }
@@ -28,7 +29,7 @@ export async function POST(request: NextRequest) {
 
   const { data, error } = await getSupabase()
     .from("appointments")
-    .select("appointment_date, appointment_time")
+    .select("appointment_date, appointment_time, postcode")
     .gte("appointment_date", today)
     .lte("appointment_date", twoWeeks);
 
@@ -42,6 +43,7 @@ export async function POST(request: NextRequest) {
   const bookedSlots: BookedSlot[] = (data ?? []).map((row) => ({
     date: row.appointment_date,
     time: row.appointment_time.slice(0, 5), // Ensure HH:MM format
+    area: row.postcode // Store area for potential future filtering
   }));
 
   return NextResponse.json<ValidatePostcodeResponse>({

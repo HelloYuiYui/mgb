@@ -12,8 +12,20 @@ export default function PostcodeForm() {
   const [loading, setLoading] = useState(false);
 
   /** Client-side validation: Glasgow postcode, 5 or 6 alphanumeric chars (no spaces). */
-  function isValidPostcode(value: string): boolean {
+  function isGlasgowPostcode(value: string): boolean {
     return /^G[A-Z0-9]{1,2}[A-Z0-9]{3}$/.test(value);
+  }
+
+  function isInServiceArea(value: string): boolean {
+    const prefix = value.slice(0, -3);
+    return ["G51", "G52", "G53", "G46", "G43",
+    "G41", "G42", "G44", "G45", "G73",
+    "G5", "G11", "G12", "G22", "G20",
+    "G21", "G31", "G32", "G33", "G34",
+    "G69", "G71", "G72", "G74", "G75", 
+    "G40", "G1", "G2", "G3", "G4", 
+    "ML3", "ML1", "ML4", "ML5" // Motherwell
+    ].includes(prefix);
   }
 
   /** Normalise to "GX XXX" or "GXX XXX" (space before last 3 characters). */
@@ -21,16 +33,15 @@ export default function PostcodeForm() {
     return value.slice(0, -3) + " " + value.slice(-3);
   }
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.SubmitEvent) {
     e.preventDefault();
     setError("");
 
     const cleaned = postcode.replace(/\s/g, "").toUpperCase();
-    if (!isValidPostcode(cleaned)) {
-      setError("Please enter a valid Glasgow postcode (e.g. G1 1AA).");
-      return;
+    if (!isGlasgowPostcode(cleaned) && !isInServiceArea(cleaned)) {
+        setError(isGlasgowPostcode(cleaned) ? "Unfortunately your postcode is outside our service area." : "Please enter a valid Glasgow postcode (e.g. G1 1AA).");
+        return;
     }
-
     const formatted = formatPostcode(cleaned);
 
     setLoading(true);

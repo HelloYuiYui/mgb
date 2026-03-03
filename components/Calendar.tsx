@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import type { BookedSlot } from "@/lib/types";
 
 /** All available time slots in a day (10:00–19:00 at 30-min intervals). */
@@ -54,15 +55,68 @@ function monthLabel(d: Date): string {
 export default function Calendar({ bookedSlots, selectedDate, onSelectDate }: CalendarProps) {
   const days = getNext14Days();
 
-  // Build a set of booked times per date for quick lookup
-  const bookedByDate = new Map<string, Set<string>>();
-  for (const slot of bookedSlots) {
-    if (!bookedByDate.has(slot.date)) {
-      bookedByDate.set(slot.date, new Set());
-    }
-    bookedByDate.get(slot.date)!.add(slot.time);
-  }
+  const [bookedByDate, setBookedByDate] = useState<Map<string, Set<string>>>(new Map());
 
+  useEffect(() => {
+    // Initialise from bookedSlots
+    const initial = new Map<string, Set<string>>();
+    for (const slot of bookedSlots) {
+      if (!initial.has(slot.date)) {
+        initial.set(slot.date, new Set());
+      }
+      initial.get(slot.date)!.add(slot.time);
+    }
+
+    const postcode = sessionStorage.getItem("mgb_postcode");
+    if (!postcode || bookedSlots.length === 0) {
+      setBookedByDate(initial);
+      return;
+    }
+
+    async function fetchDistances() {
+      for (const slot of bookedSlots) {
+        if (slot.area === "") {
+            continue; // Skip distance checks for already marked unavailable slots
+        }
+        const res = await fetch("/api/calculate-distance", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ start: postcode, end: slot.area}),
+        });
+        const { distance } = await res.json();
+        // console.log(`Distance from ${postcode} to ${slot.area}:`, distance);
+        if (distance > 15) {
+            // console.log(`Slot on ${slot.date} at ${slot.time} is more than 15 minutes away. Marking next slot as unavailable.`);
+            const prevTime = ALL_TIMES[ALL_TIMES.indexOf(slot.time) - 1];
+            if (prevTime) {
+                if (!initial.has(slot.date)) {
+                    initial.set(slot.date, new Set());
+                }
+                initial.get(slot.date)!.add(prevTime);
+                // console.log(`Marked ${slot.date} at ${prevTime} as unavailable due to distance constraint.`);
+            }
+
+            const nextTime = ALL_TIMES[ALL_TIMES.indexOf(slot.time) + 1];
+            if (nextTime) {
+                if (!initial.has(slot.date)) {
+                    initial.set(slot.date, new Set());
+                }
+                initial.get(slot.date)!.add(nextTime);
+                // console.log(`Marked ${slot.date} at ${nextTime} as unavailable due to distance constraint.`);
+            }
+        }
+      }
+      setBookedByDate(new Map(initial));
+    }
+
+    fetchDistances();
+  }, [bookedSlots]);
+
+  for (const date of bookedByDate.keys()) {
+    for (const time of bookedByDate.get(date)!) {
+        bookedSlots.push({ date, time, area: "" }); // Add distance-unavailable slots to bookedSlots for consistency
+    }
+  }
   /** Returns true if every time slot on a given date is booked. */
   function isFullyBooked(dateStr: string): boolean {
     const booked = bookedByDate.get(dateStr);

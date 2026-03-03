@@ -15,6 +15,7 @@ export interface Appointment {
 export interface BookedSlot {
   date: string; // YYYY-MM-DD
   time: string; // HH:MM
+  area: string; // Postcode for future filtering (not currently used)
 }
 
 /** Response from POST /api/validate-postcode */

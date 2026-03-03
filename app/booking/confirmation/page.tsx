@@ -31,7 +31,7 @@ export default function ConfirmationPage() {
     const storedTime = sessionStorage.getItem("mgb_time");
 
     if (!storedName || !storedDate || !storedTime) {
-      router.replace("/");
+      router.replace("/book");
       return;
     }
 
