@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
 
   // Validate and normalise postcode server-side
   const rawPostcode = (body.postcode ?? "").replace(/\s/g, "").toUpperCase();
-  console.log("Raw postcode:", body.postcode, "Cleaned postcode:", rawPostcode);
+//   console.log("Raw postcode:", body.postcode, "Cleaned postcode:", rawPostcode);
   if (!postcodes.has(rawPostcode.slice(0, -3))) {
     return NextResponse.json<BookAppointmentResponse>(
       { success: false, error: "Invalid postcode." },
