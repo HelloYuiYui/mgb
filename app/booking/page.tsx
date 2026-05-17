@@ -27,7 +27,7 @@ export default function BookingPage() {
 
     async function fetchBookedSlots() {
       try {
-        const res = await fetch("/api/booked-slots");
+        const res = await fetch(`/api/booked-slots?postcode=${encodeURIComponent(postcode!)}`);
         const data = await res.json();
         if (data.bookedSlots) {
           setBookedSlots(data.bookedSlots as BookedSlot[]);
