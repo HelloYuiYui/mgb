@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import type { BookAppointmentPayload, BookAppointmentResponse } from "@/lib/types";
+import type { BookAppointmentPayload, BookAppointmentResponse, ServiceType } from "@/lib/types";
 
 /** Personal details form — collects name, phone, email, and address. */
 export default function DetailsForm() {
@@ -40,6 +40,9 @@ export default function DetailsForm() {
     const postcode = sessionStorage.getItem("mgb_postcode");
     const date = sessionStorage.getItem("mgb_date");
     const time = sessionStorage.getItem("mgb_time");
+    const storedService = sessionStorage.getItem("mgb_service");
+    const service: ServiceType =
+      storedService === "haircut_shave" ? "haircut_shave" : "haircut";
 
     if (!postcode || !date || !time) {
       setError("Session data missing. Please start from the beginning.");
@@ -55,6 +58,7 @@ export default function DetailsForm() {
         email: email.trim() || undefined,
         address: address.trim(),
         postcode,
+        service,
         appointment_date: date,
         appointment_time: time,
       };

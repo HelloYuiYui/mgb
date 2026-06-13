@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import Header from "@/components/Header";
+import { SERVICE_LABELS } from "@/lib/slots";
 
 /** Formats a date string (YYYY-MM-DD) into a human-readable label. */
 function formatDate(dateStr: string): string {
@@ -15,39 +16,65 @@ function formatDate(dateStr: string): string {
   });
 }
 
+interface BookingSummary {
+  name: string;
+  service: string;
+  date: string;
+  time: string;
+}
+
+/** sessionStorage never notifies of changes — subscription is a no-op. */
+const emptySubscribe = () => () => {};
+
+function readBookingFromSession(): BookingSummary | null {
+  const name = sessionStorage.getItem("mgb_booking_name");
+  const date = sessionStorage.getItem("mgb_date");
+  const time = sessionStorage.getItem("mgb_time");
+  const service = sessionStorage.getItem("mgb_service");
+
+  if (!name || !date || !time) return null;
+  return {
+    name,
+    date,
+    time,
+    service:
+      service === "haircut_shave"
+        ? SERVICE_LABELS.haircut_shave
+        : SERVICE_LABELS.haircut,
+  };
+}
+
 /** Booking confirmation page — displays a summary after successful booking. */
 export default function ConfirmationPage() {
   const router = useRouter();
-  const [name, setName] = useState("");
-  const [date, setDate] = useState("");
-  const [time, setTime] = useState("");
-  const loaded = useRef(false);
+
+  // Read the summary once per mount and cache it, so it stays on screen
+  // after the session data is cleared below.
+  const cache = useRef<BookingSummary | null | undefined>(undefined);
+  const booking = useSyncExternalStore(
+    emptySubscribe,
+    () => {
+      if (cache.current === undefined) cache.current = readBookingFromSession();
+      return cache.current;
+    },
+    () => null, // server snapshot — page is prerendered without a summary
+  );
 
   useEffect(() => {
-    if (loaded.current) return;
-
-    const storedName = sessionStorage.getItem("mgb_booking_name");
-    const storedDate = sessionStorage.getItem("mgb_date");
-    const storedTime = sessionStorage.getItem("mgb_time");
-
-    if (!storedName || !storedDate || !storedTime) {
-      router.replace("/book");
+    if (booking) {
+      // Clear session data after displaying confirmation
+      sessionStorage.removeItem("mgb_postcode");
+      sessionStorage.removeItem("mgb_booked_slots");
+      sessionStorage.removeItem("mgb_service");
+      sessionStorage.removeItem("mgb_date");
+      sessionStorage.removeItem("mgb_time");
+      sessionStorage.removeItem("mgb_booking_name");
       return;
     }
-
-    loaded.current = true;
-
-    setName(storedName);
-    setDate(storedDate);
-    setTime(storedTime);
-
-    // Clear session data after displaying confirmation
-    sessionStorage.removeItem("mgb_postcode");
-    sessionStorage.removeItem("mgb_booked_slots");
-    sessionStorage.removeItem("mgb_date");
-    sessionStorage.removeItem("mgb_time");
-    sessionStorage.removeItem("mgb_booking_name");
-  }, [router]);
+    // Only redirect once the session has definitively been read as empty —
+    // during hydration `booking` is still the null server snapshot.
+    if (cache.current === null) router.replace("/book");
+  }, [booking, router]);
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center px-4 py-12">
@@ -68,16 +95,19 @@ export default function ConfirmationPage() {
 
         <Header title="Booking confirmed!" />
 
-        {name && date && time && (
+        {booking && (
           <div className="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-6 text-left">
             <p className="text-sm text-gray-600">
-              <span className="font-medium text-gray-900">Name:</span> {name}
+              <span className="font-medium text-gray-900">Name:</span> {booking.name}
             </p>
             <p className="mt-2 text-sm text-gray-600">
-              <span className="font-medium text-gray-900">Date:</span> {formatDate(date)}
+              <span className="font-medium text-gray-900">Service:</span> {booking.service}
             </p>
             <p className="mt-2 text-sm text-gray-600">
-              <span className="font-medium text-gray-900">Time:</span> {time}
+              <span className="font-medium text-gray-900">Date:</span> {formatDate(booking.date)}
+            </p>
+            <p className="mt-2 text-sm text-gray-600">
+              <span className="font-medium text-gray-900">Time:</span> {booking.time}
             </p>
           </div>
         )}

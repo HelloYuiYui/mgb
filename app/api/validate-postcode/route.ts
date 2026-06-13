@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
-import type { ValidatePostcodeResponse, BookedSlot } from "@/lib/types";
+import type { ValidatePostcodeResponse, BookedSlot, ServiceType } from "@/lib/types";
 import { postcodes } from "../calculate-distance/route";
+import { occupiedTimes } from "@/lib/slots";
 
 /**
  * POST /api/validate-postcode
@@ -29,7 +30,7 @@ export async function POST(request: NextRequest) {
 
   const { data, error } = await getSupabase()
     .from("appointments")
-    .select("appointment_date, appointment_time, postcode")
+    .select("appointment_date, appointment_time, postcode, service")
     .gte("appointment_date", today)
     .lte("appointment_date", twoWeeks);
 
@@ -40,11 +41,18 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const bookedSlots: BookedSlot[] = (data ?? []).map((row) => ({
-    date: row.appointment_date,
-    time: row.appointment_time.slice(0, 5), // Ensure HH:MM format
-    area: row.postcode // Store area for potential future filtering
-  }));
+  // Expand each appointment into its occupied slots (haircut+shave spans two)
+  const bookedSlots: BookedSlot[] = (data ?? []).flatMap((row) =>
+    occupiedTimes(
+      row.appointment_time.slice(0, 5), // Ensure HH:MM format
+      (row.service ?? "haircut") as ServiceType,
+    ).map((time) => ({
+      date: row.appointment_date,
+      time,
+      area: row.postcode, // Store area for potential future filtering
+      kind: "booked" as const,
+    }))
+  );
 
   return NextResponse.json<ValidatePostcodeResponse>({
     valid: true,

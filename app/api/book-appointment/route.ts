@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
-import type { BookAppointmentPayload, BookAppointmentResponse } from "@/lib/types";
-import { postcodes } from "../calculate-distance/route";
+import type { BookAppointmentPayload, BookAppointmentResponse, ServiceType } from "@/lib/types";
+import { dijkstra, postcodes } from "../calculate-distance/route";
+import {
+  computeBlockedSlots,
+  isStartTimeAvailable,
+  type AppointmentSlotRow,
+} from "@/lib/slots";
 
 /**
  * POST /api/book-appointment
@@ -59,12 +64,56 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  // Validate service type (defaults to haircut if omitted)
+  if (body.service && body.service !== "haircut" && body.service !== "haircut_shave") {
+    return NextResponse.json<BookAppointmentResponse>(
+      { success: false, error: "Invalid service type." },
+      { status: 400 }
+    );
+  }
+  const service: ServiceType = body.service ?? "haircut";
+
+  // Re-check availability server-side: the requested slot (both slots for a
+  // haircut+shave) must still be free given travel-time buffers.
+  const { data: existing, error: fetchError } = await getSupabase()
+    .from("appointments")
+    .select("appointment_date,appointment_time,postcode,service")
+    .eq("appointment_date", body.appointment_date);
+
+  if (fetchError) {
+    return NextResponse.json<BookAppointmentResponse>(
+      { success: false, error: "Failed to book appointment. Please try again." },
+      { status: 500 }
+    );
+  }
+
+  const rows: AppointmentSlotRow[] = (existing ?? []).map((row) => ({
+    date: row.appointment_date,
+    time: row.appointment_time.slice(0, 5),
+    postcode: row.postcode,
+    service: (row.service ?? "haircut") as ServiceType,
+  }));
+
+  const blockedSlots = computeBlockedSlots(
+    rows,
+    rawPostcode.slice(0, -3),
+    (from, to) => dijkstra(from, to)?.weight ?? null,
+  );
+
+  if (!isStartTimeAvailable(blockedSlots, body.appointment_date, body.appointment_time, service)) {
+    return NextResponse.json<BookAppointmentResponse>(
+      { success: false, error: "This time slot is no longer available. Please pick another time." },
+      { status: 409 }
+    );
+  }
+
   const { error } = await getSupabase().from("appointments").insert({
     name: body.name.trim(),
     phone,
     email: body.email?.trim() || null,
     address: body.address.trim(),
     postcode,
+    service,
     appointment_date: body.appointment_date,
     appointment_time: body.appointment_time,
   });
