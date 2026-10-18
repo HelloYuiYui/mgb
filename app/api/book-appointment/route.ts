@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
-import type { BookAppointmentPayload, BookAppointmentResponse, ServiceType } from "@/lib/types";
-import { dijkstra, postcodes } from "../calculate-distance/route";
-import {
-  computeBlockedSlots,
-  isStartTimeAvailable,
-  type AppointmentSlotRow,
-} from "@/lib/slots";
+import type {
+  BookAppointmentPayload,
+  BookAppointmentResponse,
+  BookedSlot,
+  ServiceType,
+} from "@/lib/types";
+import { postcodes } from "../calculate-distance/route";
+import { getBlockedSlots } from "@/lib/availability";
+import { isStartTimeAvailable } from "@/lib/slots";
 import { sendBookingEmails } from "@/lib/email";
 
 /**
@@ -76,30 +78,20 @@ export async function POST(request: NextRequest) {
 
   // Re-check availability server-side: the requested slot (both slots for a
   // haircut+shave) must still be free given travel-time buffers.
-  const { data: existing, error: fetchError } = await getSupabase()
-    .from("appointments")
-    .select("appointment_date,appointment_time,postcode,service")
-    .eq("appointment_date", body.appointment_date);
-
-  if (fetchError) {
+  let blockedSlots: BookedSlot[];
+  try {
+    blockedSlots = await getBlockedSlots({
+      from: body.appointment_date,
+      to: body.appointment_date,
+      userArea: rawPostcode.slice(0, -3),
+    });
+  } catch (err) {
+    console.error(err);
     return NextResponse.json<BookAppointmentResponse>(
       { success: false, error: "Failed to book appointment. Please try again." },
       { status: 500 }
     );
   }
-
-  const rows: AppointmentSlotRow[] = (existing ?? []).map((row) => ({
-    date: row.appointment_date,
-    time: row.appointment_time.slice(0, 5),
-    postcode: row.postcode,
-    service: (row.service ?? "haircut") as ServiceType,
-  }));
-
-  const blockedSlots = computeBlockedSlots(
-    rows,
-    rawPostcode.slice(0, -3),
-    (from, to) => dijkstra(from, to)?.weight ?? null,
-  );
 
   if (!isStartTimeAvailable(blockedSlots, body.appointment_date, body.appointment_time, service)) {
     return NextResponse.json<BookAppointmentResponse>(

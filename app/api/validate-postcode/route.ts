@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabase } from "@/lib/supabase";
-import type { ValidatePostcodeResponse, BookedSlot, ServiceType } from "@/lib/types";
+import type { ValidatePostcodeResponse, BookedSlot } from "@/lib/types";
 import { postcodes } from "../calculate-distance/route";
-import { occupiedTimes } from "@/lib/slots";
+import { bookingWindow, getBlockedSlots } from "@/lib/availability";
 
 /**
  * POST /api/validate-postcode
  * Validates a Glasgow-area postcode (starts with "G", 6 characters)
- * and returns booked appointment slots for the next 14 days.
+ * and returns blocked slots (booked + travel buffers) for the booking window.
  */
 export async function POST(request: NextRequest) {
   const { postcode } = await request.json();
@@ -22,37 +21,17 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  // Fetch booked appointments for the next 14 days
-  const today = new Date().toISOString().split("T")[0];
-  const twoWeeks = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000)
-    .toISOString()
-    .split("T")[0];
-
-  const { data, error } = await getSupabase()
-    .from("appointments")
-    .select("appointment_date, appointment_time, postcode, service")
-    .gte("appointment_date", today)
-    .lte("appointment_date", twoWeeks);
-
-  if (error) {
+  // Blocked slots (booked + travel buffers) for the booking window
+  let bookedSlots: BookedSlot[];
+  try {
+    bookedSlots = await getBlockedSlots({ ...bookingWindow(), userArea: cleaned.slice(0, -3) });
+  } catch (err) {
+    console.error(err);
     return NextResponse.json<ValidatePostcodeResponse>(
       { valid: false, error: "Failed to fetch appointments.", bookedSlots: [] },
       { status: 500 }
     );
   }
-
-  // Expand each appointment into its occupied slots (haircut+shave spans two)
-  const bookedSlots: BookedSlot[] = (data ?? []).flatMap((row) =>
-    occupiedTimes(
-      row.appointment_time.slice(0, 5), // Ensure HH:MM format
-      (row.service ?? "haircut") as ServiceType,
-    ).map((time) => ({
-      date: row.appointment_date,
-      time,
-      area: row.postcode, // Store area for potential future filtering
-      kind: "booked" as const,
-    }))
-  );
 
   return NextResponse.json<ValidatePostcodeResponse>({
     valid: true,
