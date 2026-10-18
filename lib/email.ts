@@ -46,11 +46,16 @@ function detailRow(label: string, valueHtml: string): string {
   </tr>`;
 }
 
-/** Shared outer wrapper so both emails render consistently on mobile. */
-function emailShell(heading: string, bodyHtml: string): string {
+/**
+ * Shared outer wrapper so both emails render consistently on mobile.
+ * `preheaderHtml` is hidden in the body but shown by mail clients as the inbox
+ * preview line; the trailing filler stops clients appending table text after it.
+ */
+function emailShell(heading: string, bodyHtml: string, preheaderHtml: string): string {
   return `<!DOCTYPE html>
 <html>
   <body style="margin:0;padding:24px 16px;background-color:#f9fafb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+    <div style="display:none;max-height:0;overflow:hidden;mso-hide:all;">${preheaderHtml}${"&#847;&zwnj;&nbsp;".repeat(40)}</div>
     <div style="max-width:480px;margin:0 auto;background-color:#ffffff;border:1px solid #e5e7eb;border-radius:8px;padding:24px;">
       <h1 style="margin:0 0 16px;font-size:20px;color:#111827;">${heading}</h1>
       ${bodyHtml}
@@ -75,8 +80,8 @@ function customerEmail(booking: BookingEmailData) {
       ${detailRow("Date", date)}
       ${detailRow("Time", time)}
       ${detailRow("Address", address)}
-    </table>
-    <p style="margin:0;font-size:14px;color:#374151;">Need to change or cancel? Just reply to this email.</p>`
+    </table>`,
+    `<p style="margin:0;font-size:14px;color:#374151;">Your ${service} is booked for ${date} at ${time}. We'll come to you — no need to travel.</p>`
   );
 
   const text = [
@@ -90,7 +95,7 @@ function customerEmail(booking: BookingEmailData) {
     "Need to change or cancel? Just reply to this email.",
   ].join("\n");
 
-  return { subject: `Booking confirmed — ${date} at ${time}`, html, text };
+  return { subject: `Booking confirmed: ${service}, ${date} at ${time}`, html, text };
 }
 
 function ownerEmail(booking: BookingEmailData) {
@@ -98,10 +103,14 @@ function ownerEmail(booking: BookingEmailData) {
   const date = formatDate(booking.appointment_date);
   const time = booking.appointment_time;
   const phone = escapeHtml(booking.phone);
+  const summary = (name: string, postcode: string) =>
+    `${name} has booked a ${service} on ${date} at ${time} in ${postcode}.`;
+  const summaryHtml = summary(escapeHtml(booking.name), escapeHtml(booking.postcode));
 
   const html = emailShell(
     "New booking",
-    `<table cellpadding="0" cellspacing="0" style="width:100%;border-top:1px solid #e5e7eb;border-bottom:1px solid #e5e7eb;">
+    `<p style="margin:0 0 16px;font-size:14px;color:#374151;">${summaryHtml} Their details are below — tap the number to call them.</p>
+    <table cellpadding="0" cellspacing="0" style="width:100%;border-top:1px solid #e5e7eb;border-bottom:1px solid #e5e7eb;">
       ${detailRow("Name", escapeHtml(booking.name))}
       ${detailRow("Phone", `<a href="tel:${phone}" style="color:#2563eb;">${phone}</a>`)}
       ${detailRow("Email", booking.email ? escapeHtml(booking.email) : "—")}
@@ -110,11 +119,12 @@ function ownerEmail(booking: BookingEmailData) {
       ${detailRow("Service", service)}
       ${detailRow("Date", date)}
       ${detailRow("Time", time)}
-    </table>`
+    </table>`,
+    summaryHtml
   );
 
   const text = [
-    "New booking:",
+    summary(booking.name, booking.postcode),
     "",
     `Name: ${booking.name}`,
     `Phone: ${booking.phone}`,
@@ -127,7 +137,7 @@ function ownerEmail(booking: BookingEmailData) {
   ].join("\n");
 
   return {
-    subject: `New booking: ${booking.appointment_date} ${time} — ${booking.postcode}`,
+    subject: `New booking: ${service}, ${date} at ${time} (${booking.postcode})`,
     html,
     text,
   };
