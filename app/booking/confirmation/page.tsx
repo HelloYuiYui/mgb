@@ -4,17 +4,7 @@ import { useEffect, useRef, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import Header from "@/components/Header";
 import { SERVICE_LABELS } from "@/lib/slots";
-
-/** Formats a date string (YYYY-MM-DD) into a human-readable label. */
-function formatDate(dateStr: string): string {
-  const d = new Date(dateStr + "T00:00:00");
-  return d.toLocaleDateString("en-GB", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
-}
+import { formatDate } from "@/lib/format";
 
 interface BookingSummary {
   name: string;

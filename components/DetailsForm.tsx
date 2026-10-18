@@ -127,7 +127,10 @@ export default function DetailsForm() {
       {/* Email (optional) */}
       <div>
         <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-          Email <span className="text-gray-400">(optional)</span>
+          Email{" "}
+          <span className="text-gray-400">
+            (recommended — we&apos;ll send your confirmation here)
+          </span>
         </label>
         <input
           id="email"
