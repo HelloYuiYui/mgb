@@ -47,3 +47,15 @@ export interface BookAppointmentResponse {
   success: boolean;
   error?: string;
 }
+
+/** Normalised booking details passed to the email module after a successful insert. */
+export interface BookingEmailData {
+  name: string;
+  phone: string;
+  email: string | null;
+  address: string;
+  postcode: string;
+  service: ServiceType;
+  appointment_date: string; // YYYY-MM-DD
+  appointment_time: string; // HH:MM
+}

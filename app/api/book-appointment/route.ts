@@ -7,6 +7,7 @@ import {
   isStartTimeAvailable,
   type AppointmentSlotRow,
 } from "@/lib/slots";
+import { sendBookingEmails } from "@/lib/email";
 
 /**
  * POST /api/book-appointment
@@ -125,6 +126,17 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
+
+  await sendBookingEmails({
+    name: body.name.trim(),
+    phone,
+    email: rawEmail || null,
+    address: body.address.trim(),
+    postcode,
+    service,
+    appointment_date: body.appointment_date,
+    appointment_time: body.appointment_time,
+  });
 
   return NextResponse.json<BookAppointmentResponse>({ success: true });
 }
