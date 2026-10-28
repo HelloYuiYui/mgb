@@ -9,9 +9,11 @@ import {
 
 const DATE = "2026-10-20";
 
+type TravelTime = (from: string, to: string) => number | null;
+
 /** Stub travel times keyed by "from|to" area, so tests don't depend on the real graph. */
-function travel(times: Record<string, number | null>) {
-  return (from: string, to: string) => times[`${from}|${to}`] ?? 0;
+function travel(times: Record<string, number | null>): TravelTime {
+  return (from, to) => times[`${from}|${to}`] ?? 0;
 }
 
 const FAR = travel({ "G1|G51": 30 });
@@ -22,7 +24,7 @@ function row(time: string, service: AppointmentSlotRow["service"]): AppointmentS
 }
 
 /** Blocked slots as "time:kind" strings, sorted by time, for compact assertions. */
-function summary(rows: AppointmentSlotRow[], userArea: string | null, getTravelTime = FAR) {
+function summary(rows: AppointmentSlotRow[], userArea: string | null, getTravelTime: TravelTime = FAR) {
   return computeBlockedSlots(rows, userArea, getTravelTime)
     .map((s) => `${s.time}:${s.kind}`)
     .sort();
