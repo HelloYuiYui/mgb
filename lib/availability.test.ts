@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { bookingWindow, getBlockedSlots } from "./availability";
+import { getBlockedSlots } from "./availability";
 
 // Records the filters applied to the appointments query and returns `result`.
 const query = vi.hoisted(() => ({
@@ -23,14 +23,6 @@ vi.mock("@/app/api/calculate-distance/route", () => ({
 beforeEach(() => {
   query.filters = [];
   query.result = { data: [], error: null };
-});
-
-describe("bookingWindow", () => {
-  it("spans today to 14 days ahead", () => {
-    vi.useFakeTimers({ now: new Date("2026-10-18T12:00:00Z") });
-    expect(bookingWindow()).toEqual({ from: "2026-10-18", to: "2026-11-01" });
-    vi.useRealTimers();
-  });
 });
 
 describe("getBlockedSlots", () => {

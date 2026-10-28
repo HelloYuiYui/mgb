@@ -3,19 +3,6 @@ import { computeBlockedSlots, type AppointmentSlotRow } from "./slots";
 import type { BookedSlot, ServiceType } from "./types";
 import { dijkstra } from "@/app/api/calculate-distance/route";
 
-/** Number of days ahead (after today) customers can book. */
-export const BOOKING_WINDOW_DAYS = 14;
-
-/** Today and today + BOOKING_WINDOW_DAYS as YYYY-MM-DD (UTC). */
-export function bookingWindow(): { from: string; to: string } {
-  const toDate = (ms: number) => new Date(ms).toISOString().split("T")[0];
-  const now = Date.now();
-  return {
-    from: toDate(now),
-    to: toDate(now + BOOKING_WINDOW_DAYS * 24 * 60 * 60 * 1000),
-  };
-}
-
 interface GetBlockedSlotsOptions {
   from: string; // YYYY-MM-DD, inclusive
   to: string; // YYYY-MM-DD, inclusive

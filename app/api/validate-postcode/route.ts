@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { ValidatePostcodeResponse, BookedSlot } from "@/lib/types";
 import { postcodes } from "../calculate-distance/route";
-import { bookingWindow, getBlockedSlots } from "@/lib/availability";
+import { getBlockedSlots } from "@/lib/availability";
+import { bookingWindow } from "@/lib/time";
 
 /**
  * POST /api/validate-postcode
