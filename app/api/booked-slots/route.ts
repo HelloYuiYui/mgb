@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { bookingWindow, getBlockedSlots } from "@/lib/availability";
+import { getBlockedSlots } from "@/lib/availability";
+import { bookingWindow } from "@/lib/time";
 import { toArea } from "@/lib/slots";
 
 /**

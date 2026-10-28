@@ -2,6 +2,7 @@
 
 import { ALL_TIMES } from "@/lib/slots";
 import type { BookedSlot } from "@/lib/types";
+import { addDays, isPastSlot, londonNow, type LondonNow } from "@/lib/time";
 
 interface CalendarProps {
   bookedSlots: BookedSlot[];
@@ -9,14 +10,12 @@ interface CalendarProps {
   onSelectDate: (date: string) => void;
 }
 
-function getNext14Days(): Date[] {
+/** The next 14 days starting from today in Europe/London, as local-midnight Dates for display. */
+function getNext14Days(now: LondonNow): Date[] {
   const days: Date[] = [];
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
   for (let i = 0; i < 14; i++) {
-    const d = new Date(today);
-    d.setDate(today.getDate() + i);
-    days.push(d);
+    const [y, m, d] = addDays(now.date, i).split("-").map(Number);
+    days.push(new Date(y, m - 1, d));
   }
   return days;
 }
@@ -40,9 +39,10 @@ function monthLabel(d: Date): string {
   return d.toLocaleDateString("en-GB", { month: "short" });
 }
 
-/** 14-day date picker grid. Days with all slots booked/blocked are disabled. */
+/** 14-day date picker grid. Days with all slots booked/blocked/past are disabled. */
 export default function Calendar({ bookedSlots, selectedDate, onSelectDate }: CalendarProps) {
-  const days = getNext14Days();
+  const now = londonNow();
+  const days = getNext14Days(now);
 
   const bookedByDate = new Map<string, Set<string>>();
   for (const slot of bookedSlots) {
@@ -50,10 +50,10 @@ export default function Calendar({ bookedSlots, selectedDate, onSelectDate }: Ca
     bookedByDate.get(slot.date)!.add(slot.time);
   }
 
+  // A day is full when every slot is blocked or has already started (later today)
   function isFullyBooked(dateStr: string): boolean {
     const booked = bookedByDate.get(dateStr);
-    if (!booked) return false;
-    return ALL_TIMES.every((t) => booked.has(t));
+    return ALL_TIMES.every((t) => booked?.has(t) || isPastSlot(dateStr, t, now));
   }
 
   return (

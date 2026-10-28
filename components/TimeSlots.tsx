@@ -1,6 +1,7 @@
 "use client";
 
 import { ALL_TIMES, isStartTimeAvailable } from "@/lib/slots";
+import { isPastSlot, londonNow } from "@/lib/time";
 import type { BookedSlot, ServiceType } from "@/lib/types";
 
 interface TimeSlotsProps {
@@ -11,7 +12,7 @@ interface TimeSlotsProps {
   onSelectTime: (time: string) => void;
 }
 
-/** Displays available 30-minute time slots for a given date. */
+/** Displays available 30-minute time slots for a given date. Slots that have already started are unavailable. */
 export default function TimeSlots({
   selectedDate,
   bookedSlots,
@@ -24,6 +25,7 @@ export default function TimeSlots({
     service === "haircut_shave" && selectedTime
       ? ALL_TIMES[ALL_TIMES.indexOf(selectedTime) + 1]
       : null;
+  const now = londonNow();
 
   return (
     <div className="mt-6">
@@ -35,7 +37,9 @@ export default function TimeSlots({
       )}
       <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
         {ALL_TIMES.map((time) => {
-          const isAvailable = isStartTimeAvailable(bookedSlots, selectedDate, time, service);
+          const isAvailable =
+            !isPastSlot(selectedDate, time, now) &&
+            isStartTimeAvailable(bookedSlots, selectedDate, time, service);
           const isSelected = selectedTime === time;
           const isSecondSlot = secondSlot === time;
 
